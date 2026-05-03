@@ -1,0 +1,449 @@
+{
+  "name": "04 - Auto Publish Instagram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "A cada 5 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date().toISOString();\nreturn [{ json: { now } }];"
+      },
+      "id": "set-now",
+      "name": "Set NOW",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/publish_queue?status=eq.queued&scheduled_for=lte.{{ $json.now }}&select=*,carousels(id,tenant_id,slides_json,caption,hashtags,meta_post_id)&order=scheduled_for",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        }
+      },
+      "id": "get-queue",
+      "name": "GET Publish Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const queue = $input.first().json;\nif (!Array.isArray(queue) || queue.length === 0) {\n  return [{ json: { skip: true } }];\n}\nreturn queue.map(q => ({ json: q }));"
+      },
+      "id": "check-empty",
+      "name": "Filtrar Vazios",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "skip-check",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notTrue"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-queue",
+      "name": "Tem Fila?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tenant_integracoes?tenant_id=eq.{{ $json.carousels.tenant_id }}&select=meta_graph_token,instagram_page_id",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        }
+      },
+      "id": "get-meta-creds",
+      "name": "GET Meta Credentials",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 200],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const creds = $input.first().json;\nconst queueItem = $('Tem Fila?').first().json;\n\nconst integration = Array.isArray(creds) ? creds[0] : creds;\n\nif (!integration || !integration.meta_graph_token || !integration.instagram_page_id) {\n  return [{ json: { skip: true, queue_id: queueItem.id, reason: 'no_meta_creds' } }];\n}\n\nconst carousel = queueItem.carousels;\nconst slides = typeof carousel.slides_json === 'string' \n  ? JSON.parse(carousel.slides_json) \n  : carousel.slides_json;\n\nconst caption = carousel.caption || '';\nconst hashtags = carousel.hashtags || '';\nconst fullCaption = `${caption}\\n\\n${hashtags}`.trim();\n\nreturn [{\n  json: {\n    skip: false,\n    queue_id: queueItem.id,\n    carousel_id: carousel.id,\n    tenant_id: carousel.tenant_id,\n    access_token: integration.meta_graph_token,\n    ig_user_id: integration.instagram_page_id,\n    slides: slides,\n    caption: fullCaption,\n    slide_count: slides.length\n  }\n}];"
+      },
+      "id": "prepare-publish",
+      "name": "Preparar Publicacao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "creds-ok",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notTrue"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-creds-ok",
+      "name": "Credenciais OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Upload each slide to Meta Graph API as media container\nconst data = $input.first().json;\nconst slides = data.slides;\nconst accessToken = data.access_token;\nconst igUserId = data.ig_user_id;\n\nconst containerIds = [];\n\nfor (let i = 0; i < slides.length; i++) {\n  const slide = slides[i];\n  const imageUrl = slide.image_url || slide.url || slide.src;\n  \n  if (!imageUrl) continue;\n\n  const response = await fetch(\n    `https://graph.facebook.com/v19.0/${igUserId}/media`,\n    {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify({\n        image_url: imageUrl,\n        is_carousel_item: true,\n        access_token: accessToken\n      })\n    }\n  );\n  \n  const result = await response.json();\n  if (result.id) {\n    containerIds.push(result.id);\n  }\n}\n\n// Create carousel container\nconst carouselResponse = await fetch(\n  `https://graph.facebook.com/v19.0/${igUserId}/media`,\n  {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      media_type: 'CAROUSEL',\n      children: containerIds.join(','),\n      caption: data.caption,\n      access_token: accessToken\n    })\n  }\n);\n\nconst carouselResult = await carouselResponse.json();\n\nif (!carouselResult.id) {\n  return [{ json: { error: true, details: carouselResult, queue_id: data.queue_id, carousel_id: data.carousel_id } }];\n}\n\n// Publish\nconst publishResponse = await fetch(\n  `https://graph.facebook.com/v19.0/${igUserId}/media_publish`,\n  {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      creation_id: carouselResult.id,\n      access_token: accessToken\n    })\n  }\n);\n\nconst publishResult = await publishResponse.json();\n\nreturn [{\n  json: {\n    success: !!publishResult.id,\n    meta_post_id: publishResult.id || null,\n    queue_id: data.queue_id,\n    carousel_id: data.carousel_id,\n    error: publishResult.error || null\n  }\n}];"
+      },
+      "id": "meta-publish",
+      "name": "Publicar Meta Graph API",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "publish-ok",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-published",
+      "name": "Publicou?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2220, 100]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/publish_queue?id=eq.{{ $json.queue_id }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"published\",\n  \"published_at\": \"{{ new Date().toISOString() }}\",\n  \"meta_post_id\": \"{{ $json.meta_post_id }}\"\n}",
+        "options": {},
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "update-queue",
+      "name": "Update Publish Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 0],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/carousels?id=eq.{{ $json.carousel_id }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"published\",\n  \"publicado_em\": \"{{ new Date().toISOString() }}\",\n  \"meta_post_id\": \"{{ $json.meta_post_id }}\"\n}",
+        "options": {},
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "update-carousel",
+      "name": "Update Carousel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 200],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/publish_queue?id=eq.{{ $json.queue_id }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"failed\",\n  \"error_log\": {{ JSON.stringify(JSON.stringify($json.error || 'Unknown error')) }}\n}",
+        "options": {},
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "mark-failed",
+      "name": "Marcar Falha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 400],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "A cada 5 min": {
+      "main": [
+        [
+          {
+            "node": "Set NOW",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set NOW": {
+      "main": [
+        [
+          {
+            "node": "GET Publish Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Publish Queue": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Vazios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Vazios": {
+      "main": [
+        [
+          {
+            "node": "Tem Fila?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Fila?": {
+      "main": [
+        [
+          {
+            "node": "GET Meta Credentials",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "GET Meta Credentials": {
+      "main": [
+        [
+          {
+            "node": "Preparar Publicacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Publicacao": {
+      "main": [
+        [
+          {
+            "node": "Credenciais OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Credenciais OK?": {
+      "main": [
+        [
+          {
+            "node": "Publicar Meta Graph API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Publicar Meta Graph API": {
+      "main": [
+        [
+          {
+            "node": "Publicou?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publicou?": {
+      "main": [
+        [
+          {
+            "node": "Update Publish Queue",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Carousel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Marcar Falha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "agencia-platform"
+    },
+    {
+      "name": "publish"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-14T00:00:00.000Z",
+  "versionId": "1"
+}

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<style>
+{{FONT_FACES}}
+{{CSS_VARS}}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 1080px;
+  height: 1350px;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg, #0a0a0a);
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+}
+
+.hl { color: var(--accent, #FF4103); }
+*:empty { display: none; }
+
+.top-section {
+  position: absolute;
+  top: 40px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  z-index: 2;
+}
+
+.slide-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-weight: 400;
+  font-size: 48px;
+  color: var(--accent, #FF4103);
+  line-height: 1;
+}
+
+.titulo {
+  font-family: 'Sora', sans-serif;
+  font-weight: 700;
+  font-size: 30px;
+  color: #ffffff;
+  margin-top: 12px;
+  padding: 0 60px;
+  line-height: 1.2;
+}
+
+.cards-wrapper {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 36px;
+  padding-top: 140px;
+  z-index: 1;
+}
+
+.cards {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  width: 100%;
+  position: relative;
+}
+
+.card {
+  flex: 1;
+  border-radius: 16px;
+  padding: 36px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
+}
+
+.card-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  margin-bottom: 20px;
+}
+
+.card-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.card-left {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.card-left .card-label {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.card-left .card-value {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.card-right {
+  background: rgba(255, 65, 3, 0.08);
+  border: 1px solid rgba(255, 65, 3, 0.2);
+}
+
+.card-right .card-label {
+  color: var(--accent, #FF4103);
+}
+
+.card-right .card-value {
+  color: var(--accent, #FF4103);
+}
+
+.vs-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  width: 48px;
+  height: 48px;
+  background: var(--bg, #0a0a0a);
+  border: 2px solid var(--accent, #FF4103);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--accent, #FF4103);
+  letter-spacing: 1px;
+}
+
+.branding {
+  position: absolute;
+  bottom: 36px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 40px;
+  z-index: 2;
+}
+
+.branding span {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 0.5px;
+}
+</style>
+</head>
+<body>
+  <div class="top-section">
+    <div class="slide-num">{{SLIDE_NUM}}</div>
+    <div class="titulo">{{TITULO}}</div>
+  </div>
+  <div class="cards-wrapper">
+    <div class="cards">
+      <div class="card card-left">
+        <div class="card-label">{{LABEL_A}}</div>
+        <div class="card-value">{{VALOR_A}}</div>
+      </div>
+      <div class="card card-right">
+        <div class="card-label">{{LABEL_B}}</div>
+        <div class="card-value">{{VALOR_B}}</div>
+      </div>
+      <div class="vs-badge">VS</div>
+    </div>
+  </div>
+  <div class="branding">
+    <span>{{HANDLE}}</span>
+    <span>{{SLIDE_NUM}}</span>
+  </div>
+</body>
+</html>

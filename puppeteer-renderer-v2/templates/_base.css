@@ -1,0 +1,30 @@
+/* Injected per-tenant via :root variables */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 1080px; height: 1350px;
+  background: var(--bg, #0a0a0a);
+  overflow: hidden; position: relative;
+  color: var(--text, #ffffff);
+}
+.hl { color: var(--accent, #FF4103); }
+.header {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 28px 40px;
+  font-family: var(--font-label), sans-serif;
+  font-size: 14px; color: rgba(255,255,255,0.35);
+  text-transform: uppercase; letter-spacing: 2px;
+}
+.slide-num {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-family: var(--font-label), sans-serif;
+  font-size: 14px; color: rgba(255,255,255,0.25);
+}
+.footer {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  border-top: 2px solid var(--accent, #FF4103);
+  padding: 16px 40px;
+  font-family: var(--font-label), sans-serif;
+  font-size: 13px; color: rgba(255,255,255,0.3);
+  text-transform: uppercase; letter-spacing: 1px;
+}

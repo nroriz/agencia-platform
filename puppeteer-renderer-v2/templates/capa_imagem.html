@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<style>
+{{FONT_FACES}}
+{{CSS_VARS}}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 1080px; height: 1350px;
+  background: var(--bg, #0a0a0a);
+  overflow: hidden; position: relative;
+  color: #ffffff;
+  font-family: var(--font-body, Inter), sans-serif;
+}
+img[src=""], img:not([src]) { display: none !important; }
+.hl { color: var(--accent, #FF4103); }
+
+/* ── Full-bleed background image ── */
+.bg-image {
+  position: absolute; top: 0; left: 0;
+  width: 1080px; height: 1350px;
+  z-index: 0;
+  overflow: hidden;
+}
+.bg-image img {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+}
+.gradient-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 1;
+  background: linear-gradient(to bottom,
+    transparent 0%,
+    transparent 35%,
+    rgba(10, 10, 10, 0.7) 55%,
+    rgba(10, 10, 10, 0.95) 75%,
+    var(--bg, #0a0a0a) 100%
+  );
+}
+
+/* ── Minimal top branding ── */
+.top-bar {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px 40px;
+}
+.top-label {
+  font-family: var(--font-body, Inter), sans-serif;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.3);
+  font-weight: 400;
+}
+.top-handle {
+  font-family: var(--font-body, Inter), sans-serif;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.3);
+  font-weight: 400;
+}
+
+/* ── Content at bottom ── */
+.content {
+  position: absolute; bottom: 40px; left: 0; right: 0;
+  z-index: 5;
+  padding: 0 52px;
+}
+
+/* ── Avatar + handle row ── */
+.author-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 20px;
+}
+.author-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--accent, #FF4103);
+  flex-shrink: 0;
+}
+.author-handle {
+  font-family: var(--font-body, Inter), sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.5);
+}
+
+/* ── Headline — CONDENSED, magazine cover style ── */
+.headline {
+  font-family: 'Bebas Neue', var(--font-headline, Sora), sans-serif;
+  font-size: 80px;
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 0.95;
+  letter-spacing: 2px;
+  color: #ffffff;
+}
+
+/* ── Subtitle ── */
+.subtitle {
+  margin-top: 16px;
+  font-family: var(--font-body, Inter), sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: rgba(255,255,255,0.55);
+  max-width: 700px;
+}
+
+/* ── Slide counter ── */
+.slide-counter {
+  position: absolute; bottom: 40px; right: 52px;
+  z-index: 10;
+  font-family: var(--font-body, Inter), sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.25);
+  letter-spacing: 1px;
+}
+</style>
+</head>
+<body>
+
+  <!-- Minimal top branding -->
+  <div class="top-bar">
+    <span class="top-label">{{HEADER_LEFT}}</span>
+    <span class="top-handle">{{HANDLE}}</span>
+  </div>
+
+  <!-- Full-bleed image -->
+  <div class="bg-image">
+    <img src="{{IMAGE_SRC}}" alt="">
+    <div class="gradient-overlay"></div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    <div class="author-row">
+      <div class="author-avatar"></div>
+      <span class="author-handle">{{HANDLE}}</span>
+    </div>
+    <div class="headline">{{GANCHO_LINHA1}}<br>{{GANCHO_LINHA2}}</div>
+    <div class="subtitle">{{SUBTITULO}}</div>
+  </div>
+
+  <!-- Slide counter -->
+  <div class="slide-counter">{{SLIDE_NUM}}</div>
+
+</body>
+</html>

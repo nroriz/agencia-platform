@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<style>
+{{FONT_FACES}}
+{{CSS_VARS}}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 1080px;
+  height: 1350px;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg, #0a0a0a);
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+}
+
+.hl { color: var(--accent, #FF4103); }
+*:empty { display: none; }
+
+.watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Bebas Neue', sans-serif;
+  font-weight: 400;
+  font-size: 400px;
+  line-height: 1;
+  color: var(--accent, #FF4103);
+  opacity: 0.05;
+  z-index: 0;
+  user-select: none;
+  pointer-events: none;
+}
+
+.content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 64px;
+  text-align: center;
+  z-index: 2;
+}
+
+.pergunta {
+  font-family: 'Sora', sans-serif;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 48px;
+  color: #ffffff;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.branding {
+  position: absolute;
+  bottom: 36px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 40px;
+  z-index: 3;
+}
+
+.branding span {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 0.5px;
+}
+</style>
+</head>
+<body>
+  <div class="watermark">?</div>
+  <div class="content">
+    <div class="pergunta">{{PERGUNTA}}</div>
+  </div>
+  <div class="branding">
+    <span>{{HANDLE}}</span>
+    <span>{{SLIDE_NUM}}</span>
+  </div>
+</body>
+</html>

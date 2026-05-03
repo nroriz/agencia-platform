@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  agencia-platform:
+    image: agencia-platform:latest
+    networks:
+      - SD_Net
+    environment:
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - SUPABASE_INTERNAL_URL=http://147.93.15.130:54321
+      - PIPELINE_API_URL=http://147.93.15.130:3456
+    deploy:
+      replicas: 1
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.agencia.rule=Host(`agencia.gorillabarber.com.br`)"
+        - "traefik.http.routers.agencia.entrypoints=websecure"
+        - "traefik.http.routers.agencia.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.agencia.loadbalancer.server.port=3000"
+      restart_policy:
+        condition: on-failure
+
+networks:
+  SD_Net:
+    external: true

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<style>
+{{FONT_FACES}}
+{{CSS_VARS}}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 1080px; height: 1350px;
+  background: var(--bg, #0a0a0a);
+  overflow: hidden; position: relative;
+  color: #ffffff;
+}
+.hl { color: var(--accent, #FF4103); }
+
+/* ── Subtle radial gradient for depth ── */
+.bg-depth {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(255,255,255,0.02) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 50%, rgba(var(--accent-rgb, 255,65,3), 0.03) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* ── Content (centered vertically) ── */
+.content {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 0 80px;
+  text-align: center;
+}
+
+/* ── Label ── */
+.label {
+  font-family: var(--font-body, Inter), sans-serif;
+  font-size: 12px; font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 5px;
+  color: rgba(255,255,255,0.3);
+  margin-bottom: 10px;
+}
+
+/* ── Big number ── */
+.numero-grande {
+  font-family: 'Bebas Neue', var(--font-number, 'Bebas Neue'), sans-serif;
+  font-size: clamp(100px, 25vw, 220px);
+  font-weight: 400;
+  line-height: 0.9;
+  color: var(--accent, #FF4103);
+  margin: 8px 0;
+}
+
+/* ── Body ── */
+.corpo {
+  font-family: var(--font-body, Inter), sans-serif;
+  font-size: 24px; font-weight: 400;
+  line-height: 1.55;
+  color: rgba(255,255,255,0.6);
+  max-width: 700px;
+  margin-top: 16px;
+}
+.corpo strong, .corpo b { font-weight: 700; color: rgba(255,255,255,0.85); }
+
+/* ── Bottom branding (minimal) ── */
+.brand-bottom {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 44px;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 40px;
+}
+.brand-bottom span {
+  font-family: var(--font-body, Inter), sans-serif;
+  font-size: 11px; font-weight: 400;
+  text-transform: uppercase; letter-spacing: 2px;
+  color: rgba(255,255,255,0.25);
+}
+</style>
+</head>
+<body>
+  <div class="bg-depth"></div>
+
+  <div class="content">
+    <div class="label">{{LABEL}}</div>
+    <div class="numero-grande">{{NUMERO_GRANDE}}</div>
+    <div class="corpo">{{CORPO}}</div>
+  </div>
+
+  <div class="brand-bottom">
+    <span>{{HANDLE}}</span>
+    <span>{{HEADER_RIGHT}}</span>
+  </div>
+</body>
+</html>

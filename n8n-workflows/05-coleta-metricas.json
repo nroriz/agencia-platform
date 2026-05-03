@@ -1,0 +1,352 @@
+{
+  "name": "05 - Coleta de Metricas Instagram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "A cada 6 horas",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/carousels?status=eq.published&meta_post_id=not.is.null&select=id,tenant_id,meta_post_id,publicado_em",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        }
+      },
+      "id": "get-published",
+      "name": "GET Carrosseis Publicados",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const carousels = $input.first().json;\nif (!Array.isArray(carousels) || carousels.length === 0) {\n  return [{ json: { skip: true } }];\n}\n\nconst now = new Date();\nconst windows = [24, 48, 168]; // 24h, 48h, 7d in hours\n\nconst toCheck = [];\n\nfor (const c of carousels) {\n  const publishedAt = new Date(c.publicado_em);\n  const hoursSince = (now - publishedAt) / (1000 * 60 * 60);\n  \n  // Check which metric window this falls into\n  let window_label = null;\n  if (hoursSince >= 24 && hoursSince < 30) window_label = '24h';\n  else if (hoursSince >= 48 && hoursSince < 54) window_label = '48h';\n  else if (hoursSince >= 168 && hoursSince < 174) window_label = '7d';\n  \n  if (window_label) {\n    toCheck.push({\n      json: {\n        carousel_id: c.id,\n        tenant_id: c.tenant_id,\n        meta_post_id: c.meta_post_id,\n        publicado_em: c.publicado_em,\n        window: window_label,\n        hours_since: Math.round(hoursSince)\n      }\n    });\n  }\n}\n\nreturn toCheck.length > 0 ? toCheck : [{ json: { skip: true } }];"
+      },
+      "id": "filtrar-janelas",
+      "name": "Filtrar Janelas Metricas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "skip-check",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notTrue"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-check",
+      "name": "Tem Metricas?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tenant_integracoes?tenant_id=eq.{{ $json.tenant_id }}&select=meta_graph_token",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        }
+      },
+      "id": "get-token",
+      "name": "GET Meta Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const tokenData = $input.first().json;\nconst carousel = $('Tem Metricas?').first().json;\nconst token = Array.isArray(tokenData) ? tokenData[0]?.meta_graph_token : tokenData?.meta_graph_token;\n\nif (!token) {\n  return [{ json: { skip: true } }];\n}\n\nreturn [{\n  json: {\n    ...carousel,\n    access_token: token\n  }\n}];"
+      },
+      "id": "merge-token",
+      "name": "Merge Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-token",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notTrue"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-token-ok",
+      "name": "Token OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v19.0/{{ $json.meta_post_id }}/insights?metric=reach,impressions,saved,shares&access_token={{ $json.access_token }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "get-insights",
+      "name": "GET Meta Insights",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 100],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const insights = $input.first().json;\nconst carouselData = $('Token OK?').first().json;\n\nconst metrics = {};\nif (insights.data && Array.isArray(insights.data)) {\n  for (const metric of insights.data) {\n    const value = metric.values?.[0]?.value || 0;\n    metrics[metric.name] = value;\n  }\n}\n\nreturn [{\n  json: {\n    carousel_id: carouselData.carousel_id,\n    tenant_id: carouselData.tenant_id,\n    meta_post_id: carouselData.meta_post_id,\n    window: carouselData.window,\n    reach: metrics.reach || 0,\n    impressions: metrics.impressions || 0,\n    saved: metrics.saved || 0,\n    shares: metrics.shares || 0,\n    collected_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "parse-insights",
+      "name": "Parse Insights",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/carousel_metrics",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"carousel_id\": \"{{ $json.carousel_id }}\",\n  \"tenant_id\": \"{{ $json.tenant_id }}\",\n  \"meta_post_id\": \"{{ $json.meta_post_id }}\",\n  \"window\": \"{{ $json.window }}\",\n  \"reach\": {{ $json.reach }},\n  \"impressions\": {{ $json.impressions }},\n  \"saved\": {{ $json.saved }},\n  \"shares\": {{ $json.shares }},\n  \"collected_at\": \"{{ $json.collected_at }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        }
+      },
+      "id": "upsert-metrics",
+      "name": "Upsert Metricas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 100],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "A cada 6 horas": {
+      "main": [
+        [
+          {
+            "node": "GET Carrosseis Publicados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Carrosseis Publicados": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Janelas Metricas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Janelas Metricas": {
+      "main": [
+        [
+          {
+            "node": "Tem Metricas?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Metricas?": {
+      "main": [
+        [
+          {
+            "node": "GET Meta Token",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "GET Meta Token": {
+      "main": [
+        [
+          {
+            "node": "Merge Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Token": {
+      "main": [
+        [
+          {
+            "node": "Token OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token OK?": {
+      "main": [
+        [
+          {
+            "node": "GET Meta Insights",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "GET Meta Insights": {
+      "main": [
+        [
+          {
+            "node": "Parse Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Insights": {
+      "main": [
+        [
+          {
+            "node": "Upsert Metricas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "agencia-platform"
+    },
+    {
+      "name": "metricas"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-14T00:00:00.000Z",
+  "versionId": "1"
+}

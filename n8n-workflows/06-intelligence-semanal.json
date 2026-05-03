@@ -1,0 +1,267 @@
+{
+  "name": "06 - Intelligence Semanal",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 21,
+              "triggerAtMinute": 0,
+              "triggerAtDay": 7
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Domingo 18h BRT",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tenants?ativo=eq.true&select=id,nome,nicho",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        }
+      },
+      "id": "get-tenants",
+      "name": "GET Tenants Ativos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-tenants",
+      "name": "Loop Tenants",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EXPRESS_PIPELINE_URL }}/pipeline/intelligence",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tenant_id\": \"{{ $json.id }}\"\n}",
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "gerar-intelligence",
+      "name": "POST Intelligence",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\nconst tenant = $('Loop Tenants').first().json;\n\n// Prepare data_intelligence record\nreturn [{\n  json: {\n    tenant_id: tenant.id,\n    tipo: 'semanal',\n    dados: JSON.stringify(result),\n    gerado_em: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "preparar-dados",
+      "name": "Preparar Dados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/data_intelligence",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tenant_id\": \"{{ $json.tenant_id }}\",\n  \"tipo\": \"{{ $json.tipo }}\",\n  \"dados\": {{ $json.dados }},\n  \"gerado_em\": \"{{ $json.gerado_em }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        }
+      },
+      "id": "salvar-intelligence",
+      "name": "Salvar Intelligence",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const tenants = $('GET Tenants Ativos').first().json;\nconst totalTenants = Array.isArray(tenants) ? tenants.length : 1;\n\nreturn [{\n  json: {\n    message: `📊 Relatorios de intelligence gerados para ${totalTenants} tenants`,\n    totalTenants\n  }\n}];"
+      },
+      "id": "contar-resultados",
+      "name": "Contar Resultados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 500]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chat_id\": \"{{ $env.TELEGRAM_ADMIN_CHAT_ID }}\",\n  \"text\": \"{{ $json.message }}\",\n  \"parse_mode\": \"HTML\"\n}",
+        "options": {}
+      },
+      "id": "telegram-notify",
+      "name": "Telegram Admin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 500],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Domingo 18h BRT": {
+      "main": [
+        [
+          {
+            "node": "GET Tenants Ativos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Tenants Ativos": {
+      "main": [
+        [
+          {
+            "node": "Loop Tenants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Tenants": {
+      "main": [
+        [
+          {
+            "node": "Contar Resultados",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "POST Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST Intelligence": {
+      "main": [
+        [
+          {
+            "node": "Preparar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Dados": {
+      "main": [
+        [
+          {
+            "node": "Salvar Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar Intelligence": {
+      "main": [
+        [
+          {
+            "node": "Loop Tenants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contar Resultados": {
+      "main": [
+        [
+          {
+            "node": "Telegram Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "agencia-platform"
+    },
+    {
+      "name": "intelligence"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-14T00:00:00.000Z",
+  "versionId": "1"
+}

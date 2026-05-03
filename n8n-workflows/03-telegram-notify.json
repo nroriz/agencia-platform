@@ -1,0 +1,325 @@
+{
+  "name": "03 - Telegram Notify Aprovacao",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "A cada 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/carousels?status=eq.pending_approval&telegram_notified=eq.false&select=id,tenant_id,tema,tema_refinado,hook_linha1,hook_linha2,caption,formato",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        }
+      },
+      "id": "get-pending",
+      "name": "GET Carrosseis Pendentes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const carousels = $input.first().json;\nif (!Array.isArray(carousels) || carousels.length === 0) {\n  return [{ json: { skip: true } }];\n}\nreturn carousels.map(c => ({ json: c }));"
+      },
+      "id": "check-empty",
+      "name": "Filtrar Vazios",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "skip-check",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notTrue"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-pending",
+      "name": "Tem Pendentes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tenant_integracoes?tenant_id=eq.{{ $json.tenant_id }}&select=aprovacao_canal,telegram_chat_id",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        }
+      },
+      "id": "get-integration",
+      "name": "GET Integracao Tenant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const integration = $input.first().json;\nconst carousel = $('Tem Pendentes?').first().json;\n\nconst integrations = Array.isArray(integration) ? integration : [integration];\nconst int = integrations[0];\n\nif (!int || int.aprovacao_canal !== 'telegram' || !int.telegram_chat_id) {\n  return [{ json: { skip: true, carousel_id: carousel.id } }];\n}\n\nreturn [{\n  json: {\n    skip: false,\n    carousel_id: carousel.id,\n    tenant_id: carousel.tenant_id,\n    chat_id: int.telegram_chat_id\n  }\n}];"
+      },
+      "id": "check-telegram",
+      "name": "Verificar Telegram Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "telegram-ok",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notTrue"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-telegram-ok",
+      "name": "Telegram Ativo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://agencia.gorillabarber.com.br/api/telegram/notify",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"carousel_id\": \"{{ $json.carousel_id }}\"\n}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "send-notify",
+      "name": "Enviar Notificacao",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 100],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/carousels?id=eq.{{ $('Telegram Ativo?').first().json.carousel_id }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"telegram_notified\": true\n}",
+        "options": {},
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "mark-notified",
+      "name": "Marcar Notificado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 100],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "A cada 15 min": {
+      "main": [
+        [
+          {
+            "node": "GET Carrosseis Pendentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Carrosseis Pendentes": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Vazios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Vazios": {
+      "main": [
+        [
+          {
+            "node": "Tem Pendentes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Pendentes?": {
+      "main": [
+        [
+          {
+            "node": "GET Integracao Tenant",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "GET Integracao Tenant": {
+      "main": [
+        [
+          {
+            "node": "Verificar Telegram Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Telegram Config": {
+      "main": [
+        [
+          {
+            "node": "Telegram Ativo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Ativo?": {
+      "main": [
+        [
+          {
+            "node": "Enviar Notificacao",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Enviar Notificacao": {
+      "main": [
+        [
+          {
+            "node": "Marcar Notificado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "agencia-platform"
+    },
+    {
+      "name": "telegram"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-14T00:00:00.000Z",
+  "versionId": "1"
+}

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<style>
+{{FONT_FACES}}
+{{CSS_VARS}}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 1080px; height: 1350px;
+  background: var(--bg, #0a0a0a);
+  overflow: hidden; position: relative;
+  color: #ffffff;
+  font-family: var(--font-body, Inter), sans-serif;
+}
+img[src=""], img:not([src]) { display: none !important; }
+.hl { color: var(--accent, #FF4103); }
+
+/* ── Full-bleed background image ── */
+.bg-image {
+  position: absolute; top: 0; left: 0;
+  width: 1080px; height: 1350px;
+  z-index: 0;
+  overflow: hidden;
+}
+.bg-image img {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+}
+.gradient-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 1;
+  background: linear-gradient(to bottom,
+    transparent 0%,
+    rgba(10, 10, 10, 0.5) 40%,
+    rgba(10, 10, 10, 0.9) 70%,
+    var(--bg, #0a0a0a) 90%
+  );
+}
+
+/* ── Minimal top branding ── */
+.top-handle {
+  position: absolute; top: 20px; right: 40px; z-index: 10;
+  font-family: var(--font-body, Inter), sans-serif;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.3);
+  font-weight: 400;
+}
+
+/* ── CTA content — centered in bottom portion ── */
+.cta-content {
+  position: absolute;
+  top: 55%; bottom: 0; left: 0; right: 0;
+  z-index: 5;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 0 52px;
+  text-align: center;
+}
+
+/* ── Headline — CONDENSED, magazine cover style ── */
+.titulo {
+  font-family: 'Bebas Neue', var(--font-headline, Sora), sans-serif;
+  font-size: 72px;
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 0.95;
+  letter-spacing: 2px;
+  color: #ffffff;
+}
+
+/* ── Body text ── */
+.corpo {
+  margin-top: 16px;
+  font-family: var(--font-body, Inter), sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.6);
+  max-width: 700px;
+}
+
+/* ── CTA button — pill shape ── */
+.cta-button {
+  display: inline-block;
+  margin-top: 28px;
+  padding: 18px 48px;
+  background: var(--accent, #FF4103);
+  color: #ffffff;
+  font-family: var(--font-body, Inter), sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-radius: 50px;
+  border: none;
+  text-decoration: none;
+}
+
+/* ── Handle + slogan ── */
+.cta-handle {
+  margin-top: 20px;
+  font-family: var(--font-body, Inter), sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent, #FF4103);
+}
+.cta-slogan {
+  margin-top: 8px;
+  font-family: var(--font-body, Inter), sans-serif;
+  font-size: 14px;
+  font-style: italic;
+  font-weight: 400;
+  color: rgba(255,255,255,0.35);
+}
+</style>
+</head>
+<body>
+
+  <!-- Minimal top branding -->
+  <span class="top-handle">{{HANDLE}}</span>
+
+  <!-- Full-bleed image -->
+  <div class="bg-image">
+    <img src="{{IMAGE_SRC}}" alt="">
+    <div class="gradient-overlay"></div>
+  </div>
+
+  <!-- CTA content -->
+  <div class="cta-content">
+    <div class="titulo">{{TITULO}}</div>
+    <div class="corpo">{{CORPO}}</div>
+    <div class="cta-button">{{CTA_TEXT}}</div>
+    <div class="cta-handle">{{HANDLE}}</div>
+    <div class="cta-slogan">{{SLOGAN}}</div>
+  </div>
+
+</body>
+</html>

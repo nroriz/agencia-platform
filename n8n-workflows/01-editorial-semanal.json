@@ -1,0 +1,309 @@
+{
+  "name": "01 - Editorial Semanal",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 23,
+              "triggerAtMinute": 0,
+              "triggerAtDay": 7
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Domingo 20h BRT",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tenants?ativo=eq.true&select=id,nome,nicho",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        }
+      },
+      "id": "get-tenants",
+      "name": "GET Tenants Ativos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-tenants",
+      "name": "Loop Tenants",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://agencia.gorillabarber.com.br/api/themes/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tenant_id\": \"{{ $json.id }}\",\n  \"modo\": \"editorial\",\n  \"quantidade\": 5\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "gerar-temas",
+      "name": "Gerar Temas IA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepara os temas para inserção no Supabase\nconst temas = $input.first().json.temas || $input.first().json.themes || [];\nconst tenant_id = $input.first().json.tenant_id || $('Loop Tenants').first().json.id;\n\nconst items = temas.map(tema => ({\n  json: {\n    tenant_id: tenant_id,\n    tema: typeof tema === 'string' ? tema : tema.tema || tema.title,\n    origem: 'ia',\n    prioridade: 5,\n    usado: false\n  }\n}));\n\nreturn items.length > 0 ? items : [{ json: { skip: true } }];"
+      },
+      "id": "preparar-ideias",
+      "name": "Preparar Ideias",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "skip-check",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notTrue"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-temas",
+      "name": "Tem Temas?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/ideias",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tenant_id\": \"{{ $json.tenant_id }}\",\n  \"tema\": \"{{ $json.tema }}\",\n  \"origem\": \"{{ $json.origem }}\",\n  \"prioridade\": {{ $json.prioridade }},\n  \"usado\": false\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        }
+      },
+      "id": "salvar-ideias",
+      "name": "Salvar Ideias Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Conta totais para notificação\nconst allItems = $('Salvar Ideias Supabase').all();\nconst tenants = $('GET Tenants Ativos').first().json;\nconst totalTemas = allItems.length;\nconst totalTenants = Array.isArray(tenants) ? tenants.length : 1;\n\nreturn [{\n  json: {\n    message: `📝 Editorial semanal gerado: ${totalTemas} temas para ${totalTenants} tenants`,\n    totalTemas,\n    totalTenants\n  }\n}];"
+      },
+      "id": "contar-resultados",
+      "name": "Contar Resultados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 500]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chat_id\": \"{{ $env.TELEGRAM_ADMIN_CHAT_ID }}\",\n  \"text\": \"{{ $json.message }}\",\n  \"parse_mode\": \"HTML\"\n}",
+        "options": {}
+      },
+      "id": "telegram-notify",
+      "name": "Telegram Admin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 500],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Domingo 20h BRT": {
+      "main": [
+        [
+          {
+            "node": "GET Tenants Ativos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Tenants Ativos": {
+      "main": [
+        [
+          {
+            "node": "Loop Tenants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Tenants": {
+      "main": [
+        [
+          {
+            "node": "Contar Resultados",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gerar Temas IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar Temas IA": {
+      "main": [
+        [
+          {
+            "node": "Preparar Ideias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Ideias": {
+      "main": [
+        [
+          {
+            "node": "Tem Temas?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Temas?": {
+      "main": [
+        [
+          {
+            "node": "Salvar Ideias Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Salvar Ideias Supabase": {
+      "main": [
+        [
+          {
+            "node": "Loop Tenants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contar Resultados": {
+      "main": [
+        [
+          {
+            "node": "Telegram Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "agencia-platform"
+    },
+    {
+      "name": "editorial"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-14T00:00:00.000Z",
+  "versionId": "1"
+}

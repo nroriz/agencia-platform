@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<style>
+{{FONT_FACES}}
+{{CSS_VARS}}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 1080px;
+  height: 1350px;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg, #0a0a0a);
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+}
+
+.hl { color: var(--accent, #FF4103); }
+*:empty { display: none; }
+
+.bg-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 30%, rgba(255, 255, 255, 0.015) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.content {
+  position: absolute;
+  top: 40%;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 0 52px 80px 52px;
+  z-index: 1;
+}
+
+.titulo {
+  font-family: 'Sora', sans-serif;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 40px;
+  color: #ffffff;
+  line-height: 1.15;
+  margin-bottom: 32px;
+}
+
+.lista {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.lista li {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 26px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.4;
+}
+
+.lista li:empty { display: none; }
+
+.lista li::before {
+  content: "";
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  background: var(--accent, #FF4103);
+  border-radius: 50%;
+  margin-top: 10px;
+}
+
+.branding {
+  position: absolute;
+  bottom: 36px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 40px;
+  z-index: 2;
+}
+
+.branding span {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 0.5px;
+}
+</style>
+</head>
+<body>
+  <div class="bg-gradient"></div>
+  <div class="content">
+    <div class="titulo">{{TITULO}}</div>
+    <ul class="lista">
+      <li>{{ITEM1}}</li>
+      <li>{{ITEM2}}</li>
+      <li>{{ITEM3}}</li>
+      <li>{{ITEM4}}</li>
+      <li>{{ITEM5}}</li>
+      <li>{{ITEM6}}</li>
+      <li>{{ITEM7}}</li>
+      <li>{{ITEM8}}</li>
+    </ul>
+  </div>
+  <div class="branding">
+    <span>{{HANDLE}}</span>
+    <span>{{SLIDE_NUM}}</span>
+  </div>
+</body>
+</html>
